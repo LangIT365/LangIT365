@@ -10,9 +10,6 @@ if ($safemode -eq "No") {
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
-$ScriptInfo = '
-
-'
 
 function Check-Permissions {
     
@@ -28,27 +25,18 @@ function Check-Permissions {
         New-Item -ItemType directory -Path $global:dirPath
     }
     catch {
-        write-Warning "Exception caught";
-        write-Warning "$_";
+
         Exit 1;
 
     }
 
-
-
-
-
-
     if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(`
                 [Security.Principal.WindowsBuiltInRole] "Administrator")) {
-        Write-Warning "Insufficient permissions to run this script. Open the PowerShell console as an administrator and run this script again."
+
 
 
     }
-    else {
-        $whoami = ""
-        $whoami = (whoami)
-    }
+
 } 
 
 function Check_DisableRegistryTools {
@@ -59,9 +47,7 @@ function Check_DisableRegistryTools {
         try { 
             $DisableRegistryTools = (Get-ItemProperty HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -ErrorAction Stop).DisableRegistryTools
         }
-        catch {
 
-        } 
     
         If ( $DisableRegistryTools -eq 2) {
             Exit 1;
@@ -98,14 +84,7 @@ function variables {
 
     }
    
-
-    if ($global:AttemptedUninstall -eq $null -or $global:AttemptedUninstall -eq '') {
-
-    }
-    else {
-
-    }
-
+    if ($global:AttemptedUninstall -eq $null -or $global:AttemptedUninstall -eq '') 
 
     $global:MultiStringName = "UpperFilters";
     $global:RemoveDelete_Value = "CyDevFlt";
@@ -155,11 +134,6 @@ function modify-Self-Protection-Desktop {
         try { 
             $SelfProtectionLevel = (Get-ItemProperty HKLM:\SOFTWARE\Cylance\Desktop -ErrorAction Stop).SelfProtectionLevel
         }
-        catch {
-
-            write-Warning "Exception caught";
-            write-Warning "$_";
-        }
 
         If ( $SelfProtectionLevel -eq 0 -or $SelfProtectionLevel -eq 2) {
             if ($global:safemode -eq "No") {
@@ -167,28 +141,19 @@ function modify-Self-Protection-Desktop {
                 try {
                     Take-Permissions $HiveAbr $Hivepath
                 }
-                catch {
-        
-                    write-Warning "Exception caught";
-                    write-Warning "$_";
-                }
+
 
                 try { 
                     Set-ItemProperty -Path "HKLM:\SOFTWARE\Cylance\Desktop" -Name "SelfProtectionLevel" -Value 1;
                     if ($LASTEXITCODE -eq 1) {
-                        write-Warning "Exception caught";
+
                         exit 1
                         Stop-Transcript;
                     }
                 }
-                catch {
-        
-                    write-Warning "Exception caught";
-                    write-Warning "$_";
-                }
+
             }
-            else {
-            }
+
         }
         elseif ( $SelfProtectionLevel -eq 1) {
             
@@ -198,32 +163,19 @@ function modify-Self-Protection-Desktop {
                 try {
                     Take-Permissions $HiveAbr $Hivepath
                 }
-                catch {
-        
-                    write-Warning "Exception caught";
-                    write-Warning "$_";
-                }        
+    
         
                 try { 
                     New-ItemProperty -Path "HKLM:\SOFTWARE\Cylance\Desktop" -Name 'SelfProtectionLevel' -Value 1 -PropertyType DWord -ErrorAction Stop;
                 }
-                catch {
-        
-
-                }
-            }
-            else {
 
             }
-        }
-        else {
 
         }
+
 
     }
-    else {
 
-    } 
 
 } 
 
@@ -237,11 +189,7 @@ function modify-Self-Protection-Optics {
         try { 
             $SelfProtectionLevel = (Get-ItemProperty HKLM:\SOFTWARE\Cylance\Optics -ErrorAction Stop).SelfProtectionLevel
         }
-        catch {
 
-            write-Warning "Exception caught";
-            write-Warning "$_";
-        }
 
         If ( $SelfProtectionLevel -eq 0 -or $SelfProtectionLevel -eq 2) {
 
@@ -251,29 +199,19 @@ function modify-Self-Protection-Optics {
                 try {
                     Take-Permissions $HiveAbr $Hivepath
                 }
-                catch {
-        
-                    write-Warning "Exception caught";
-                    write-Warning "$_";
-                }
+
 
                 try { 
                     Set-ItemProperty -Path "HKLM:\SOFTWARE\Cylance\Optics" -Name "SelfProtectionLevel" -Value 1;
                     if ($LASTEXITCODE -eq 1) {
-                        write-Warning "Exception caught";
+
                         exit 1
                         Stop-Transcript;
                     }
                 }
-                catch {
-        
-                    write-Warning "Exception caught";
-                    write-Warning "$_";
-                }
-            }
-            else {
 
             }
+
         }
         elseif ( $SelfProtectionLevel -eq 1) {
 
@@ -286,33 +224,20 @@ function modify-Self-Protection-Optics {
                 try {
                     Take-Permissions $HiveAbr $Hivepath
                 }
-                catch {
-        
-                    write-Warning "Exception caught";
-                    write-Warning "$_";
-                }        
+   
         
                 try { 
                     
                     New-ItemProperty -Path "HKLM:\SOFTWARE\Cylance\Optics" -Name 'SelfProtectionLevel' -Value 1 -PropertyType DWord -ErrorAction Stop;
                 }
-                catch {
-        
-
-                }
-            }
-            else {
 
             }
-        }
-        else {
 
         }
+
 
     }
-    else {
 
-    } 
 
 } 
 
@@ -327,11 +252,7 @@ function modify-LastStateRestorePoint {
         try { 
             $SelfProtectionLevel = (Get-ItemProperty $global:Originalkey).PSObject.Properties.Name -contains "LastStateRestorePoint"
         }
-        catch {
 
-            write-Warning "Exception caught";
-            write-Warning "$_";
-        }
 
         if ($SelfProtectionLevel) {
 
@@ -345,36 +266,21 @@ function modify-LastStateRestorePoint {
                     try {
                         Take-Permissions $HiveAbr $Hivepath
                     }
-                    catch {
-            
-                        write-Warning "Exception caught";
-                        write-Warning "$_";
-                    }  
+
                 
 
                     try {
                         Remove-ItemProperty -Path HKLM:\SOFTWARE\Cylance\Desktop -Name LastStateRestorePoint -Force -Verbose -ErrorAction Stop
 
                     }
-                    catch {
-            
-                        write-Warning "    Exception caught";
-                        write-Warning "    $_";
 
-                    }
 
                 }
-                else {
 
-                } 
             }
-            else {
 
-            } 
         }
-        else {
 
-        } 
     } 
 } 
 
@@ -410,10 +316,7 @@ function modify-Services {
             try {
                 $global:Servicevalue = (Get-ItemProperty $k -ErrorAction Stop).Start;
             }
-            catch {
-                write-Warning "Exception caught";
-                write-Warning "$_";
-            }
+
 
             If ( $global:Servicevalue -ne 4 ) {
 
@@ -423,11 +326,7 @@ function modify-Services {
                     try {
                         Take-Permissions $HiveAbr $Hivepath
                     }
-                    catch {
-            
-                        write-Warning "Exception caught";
-                        write-Warning "$_";
-                    }    
+  
     
                     try { 
                         Set-ItemProperty -Path $k -Name "Start" -Value 4;
@@ -437,15 +336,9 @@ function modify-Services {
                         }
 
                     }
-                    catch {
-            
-                        write-Warning "Exception caught";
-                        write-Warning "$_";
-                    }
-                }
-                else {
 
                 }
+
             }
 
         } 
@@ -478,8 +371,7 @@ function Stop-Delete-Services {
                         Stop-ServiceWithTimeout $k 30
                     }
                     catch {
-                        Write-Warning "Exception caught";
-                        Write-Warning "You may need to restart the endpoint and re-run the script"
+
                     } 
 
                     sc.exe delete $k #-ErrorAction SilentlyContinue
@@ -487,10 +379,10 @@ function Stop-Delete-Services {
 
                     }
                     if ( $LASTEXITCODE -eq 5 ) { 
-                        Write-Warning "Access Denied! Please reboot the endpoint and re-run the script."
+
                     }
                     if ( $LASTEXITCODE -eq 1072 ) { 
-                        Write-Warning "Service is marked for deletion and will be removed during the next reboot."
+
                     }
                 } 
                 
@@ -510,9 +402,7 @@ function Stop-Delete-Services {
             Remove-Variable CylanceUI
         } 
     }
-    else {
 
-    } 
 } 
 
 function Backup_Reg_Keys {
@@ -605,17 +495,14 @@ function Backup_Reg_Keys {
             try {
                 reg export $global:SafeExportName $global:RegOutputFile /y | out-null;
                 if ($LASTEXITCODE -eq 1) {
-                    write-Warning "Exception caught";
+
                     exit 1
                     Stop-Transcript;
                 }
 
                 Delete_Reg_Keys;
             }
-            catch {
-                write-Warning "Exception caught";
 
-            }
         } 
     }
 
@@ -665,7 +552,6 @@ function Backup_Reg_Keys {
 
                 $PathExists = (Get-ItemProperty $global:FullWildCard1 -ErrorAction SilentlyContinue) -ne $null;
                 If ( $PathExists ) {
-                     PathExists
 
                     $n = $l + "\"
                     $global:Originalkey = $n
@@ -684,17 +570,12 @@ function Backup_Reg_Keys {
                     try {
                         reg export $global:SafeExportName $global:RegOutputFile1 /y | out-null;
                         if ($LASTEXITCODE -eq 1) {
-                            write-Warning "Exception caught";
+
                             exit 1
                             Stop-Transcript;
                         }
 
                         Delete_Reg_Keys;
-                    }
-                    catch {
-            
-                        write-Warning "Exception caught";
-
                     }
 
                     $o = ""
@@ -720,27 +601,21 @@ function Backup_Reg_Keys {
                             try {
                                 reg export $global:SafeExportName $global:RegOutputFile /y | out-null;
                                 if ($LASTEXITCODE -eq 1) {
-                                    write-Warning "Exception caught";
+
                                     exit 1
                                     Stop-Transcript;
                                 }
 
                                 Delete_Reg_Keys;
                             }
-                            catch {
-                    
-                                write-Warning "Exception caught";
 
-                            }
-                        }  RegkeyPathExist
+                        }  
                     } 
-                }  PathExists
+                }  
             } 
         } 
     }
 #>
-
-
 
     $RegkeysHive = ""
     $RegkeysHive = @(
@@ -792,18 +667,14 @@ function Backup_Reg_Keys {
                     try {
                         reg export $global:SafeExportName $global:RegOutputFile /y | out-null;
                         if ($LASTEXITCODE -eq 1) {
-                            write-Warning "Exception caught";
+
                             exit 1
                             Stop-Transcript;
                         }
 
                         Delete_Reg_Keys;
                     }
-                    catch {
-            
-                        write-Warning "Exception caught";
 
-                    }
                 } 
             } 
         }
@@ -837,17 +708,13 @@ function Backup_Reg_Keys {
             try {
                 reg export $global:SafeExportName $global:RegOutputFile /y | out-null;
                 if ($LASTEXITCODE -eq 1) {
-                    write-Warning "Exception caught";
+
                     exit 1
                     Stop-Transcript;
                 }
 
             }
-            catch {
-    
-                write-Warning "Exception caught";
-                write-Warning "$_";
-            }
+
 
         } 
 
@@ -888,17 +755,14 @@ function Backup_Reg_Keys {
             try {
                 reg export $global:SafeExportName $global:RegOutputFile /y | out-null;
                 if ($LASTEXITCODE -eq 1) {
-                    write-Warning "Exception caught";
+
                     exit 1
                     Stop-Transcript;
                 }
 
                 Delete_Reg_Keys;
             }
-            catch {
-                write-Warning "Exception caught";
-                write-Warning "$_";
-            }
+
 
         } 
 
@@ -928,9 +792,7 @@ function Search_Reg_CyDevFlt {
 
                             Remove-ItemProperty Registry::$Path -Name $global:MultiStringName
                         }
-                        else {
 
-                        }
 
                     }
                     elseif ($MultiStringValue.length -gt '1') {
@@ -940,18 +802,14 @@ function Search_Reg_CyDevFlt {
 
                             Set-ItemProperty Registry::$Path -Name $global:MultiStringName -Value $NewMultiStringValue
                         }
-                        else {
 
-                        }
                     } 
                 } 
 
             } 
         } 
     }
-    else {
 
-    }
 } 
 
 function Search_Reg_CyDevFltV2 {
@@ -977,9 +835,7 @@ function Search_Reg_CyDevFltV2 {
 
                             Remove-ItemProperty Registry::$Path -Name $global:MultiStringName
                         }
-                        else {
 
-                        }
 
                     }
                     elseif ($MultiStringValue.length -gt '1') {
@@ -990,18 +846,14 @@ function Search_Reg_CyDevFltV2 {
 
                             Set-ItemProperty Registry::$Path -Name $global:MultiStringName -Value $NewMultiStringValue
                         }
-                        else {
 
-                        }
                     } 
                 } 
 
             } 
         } 
     }
-    else {
 
-    }
 } 
 
 function Delete_Reg_Keys {
@@ -1011,34 +863,22 @@ function Delete_Reg_Keys {
 
         if ($global:safemode -eq "Yes") {
             
-
-
         }
         else {
             try {
                 Take-Permissions $HiveAbr $Hivepath
             }
-            catch {
-    
-                write-Warning "Exception caught";
-                write-Warning "$_";
-            }  
+  
 
             try {
                 Remove-Item -Path $global:Originalkey -Force -Recurse -Verbose -ErrorAction Stop
 
             }
-            catch {
-    
-                write-Warning "    Exception caught";
-                write-Warning "    $_";
-            }
+
         } 
 
     }
-    else {
 
-    } 
 } 
 
 function Take-Permissions {
@@ -1114,16 +954,12 @@ function Take-Ownership-Permission-Individual-Files {
                 try {
                     takeown /f "$path1" /A
                     if ($LASTEXITCODE -eq 1) {
-                        write-Warning "Exception caught";
+                        
                     }
                 }  
-                catch {
-        
-                    write-Warning "Exception caught";
-                    write-Warning "$_";
-                }
+
             } 
-        } Else
+        } 
     }
        
         
@@ -1157,16 +993,12 @@ function Take-Ownership-Permission-Individual-Files {
                     Invoke-Expression -Command ('icacls $filepath1 $Grant "${useraccount2}${permission}" /Q /T')
                     Invoke-Expression -Command ('icacls $filepath1 $replaceInherit /Q /T') 
                     if ($LASTEXITCODE -eq 1) {
-                        write-Warning "Exception caught";
+                        
                     }
                 }  
-                catch {
-        
-                    write-Warning "Exception caught";
-                    write-Warning "$_";
-                }
+
             } 
-        } Else
+        } 
     }
               
 }
@@ -1190,16 +1022,12 @@ function Take-Ownership-Permission-Folder-Files {
                 try {
                     takeown /f "$path1" /R /A /D Y
                     if ($LASTEXITCODE -eq 1) {
-                        write-Warning "Exception caught";
+                        
                     }
                 }  
-                catch {
-        
-                    write-Warning "Exception caught";
-                    write-Warning "$_";
-                }
+
             }
-        } Else
+        } 
     }
        
         
@@ -1229,16 +1057,12 @@ function Take-Ownership-Permission-Folder-Files {
                     Invoke-Expression -Command ('icacls $filepath1 $Grant "${useraccount2}${permission}" /Q /T')
                     Invoke-Expression -Command ('icacls $filepath1 $replaceInherit /Q /T') 
                     if ($LASTEXITCODE -eq 1) {
-                        write-Warning "Exception caught";
+                        
                     }
                 }  
-                catch {
-        
-                    write-Warning "Exception caught";
-                    write-Warning "$_";
-                }
+
             } 
-        } Else
+        } 
     }
               
 } 
@@ -1284,44 +1108,30 @@ function Delete-Files-n-Folders {
                     New-Item -ItemType Directory $global:OutputFile -Force
                     Copy-Item $filepath3 -Destination $global:OutputFile -Force
                 }
-                catch {
-                    Write-Warning "Exception caught";
-                    Write-Warning "$_";
-                }
+
             }
 
 
             if ($global:safemode -eq "No") {
                 if ($filepath3 -like '*Elam*') { 
                     if (Test-Path -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\CyElamDrv') {
-                        Write-Warning "  ELAM Registry still exist. Skipping delete of file"
+
                     }
                     else {
                         try {
                             Remove-Item -Recurse -Force $filepath3 -ErrorAction Stop
                         }
-                        catch {
-                            Write-Warning "Exception caught";
-                            Write-Warning "$_";
-                            Write-Warning "You may need to restart the endpoint and manually delete or re-run the script";
-                        }
+
                     }
                 }
                 else {
                     try {
                         Remove-Item -Recurse -Force $filepath3 -ErrorAction Stop
                     }
-                    catch {
-                        Write-Warning "Exception caught";
-                        Write-Warning "$_";
-                        Write-Warning "You may need to restart the endpoint and manually delete or re-run the script";
-                    }
+
                 } 
             } 
 
-            else {
-
-            }
             if ($LASTEXITCODE -eq 1) {
 
             }
@@ -1340,29 +1150,23 @@ function Delete-Files-n-Folders {
 
     foreach ($filepath4 in $FolderPaths4) {
         if (Test-Path $filepath4) {
-             check
+             
             if ((Get-ChildItem $filepath4 | Measure-Object).Count -eq 0) {
-                 folder-check is empty
+                 
                 
 
                 if ($global:safemode -eq "No") {
                     try {
                         Remove-Item -Recurse -Force $filepath4 -ErrorAction Stop
                     }
-                    catch {
-                        Write-Warning "Exception caught";
-                        Write-Warning "$_";
-                        Write-Warning "You may need to restart the endpoint and manually delete or re-run the script";
-                    }
-                }
-                else {
 
                 }
+
                 if ($LASTEXITCODE -eq 1) {
 
                 }
-            }  folder-check is empty
-        }  check
+            }  
+        }  
        
     } 
 
@@ -1396,29 +1200,17 @@ function ReEnable-Windows-Defender {
         try { 
             $WdEarlyLaunchGroup = (Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\WdBoot -ErrorAction Stop).Group
         }
-        catch {
 
-            write-Warning "Exception caught";
-            write-Warning "$_";
-        }
 
         try { 
             $WdEarlyLaunchStart = (Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\WdBoot -ErrorAction Stop).Start
         }
-        catch {
 
-            write-Warning "Exception caught";
-            write-Warning "$_";
-        }
 
         try { 
             $WdEarlyLaunchImagePath = (Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\WdBoot -ErrorAction Stop).ImagePath
         }
-        catch {
 
-            write-Warning "Exception caught";
-            write-Warning "$_";
-        }
 
         If ( $WdEarlyLaunchGroup -like '*_Early-Launch*' ) {
 
@@ -1428,41 +1220,29 @@ function ReEnable-Windows-Defender {
                 try {
                     Take-Permissions $HiveAbr $Hivepath
                 }
-                catch {
-        
-                    write-Warning "Exception caught";
-                    write-Warning "$_";
-                }
+
 
                 try { 
                     Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WdBoot" -Name "Group" -Value "Early-Launch";
                     if ($LASTEXITCODE -eq 1) {
-                        write-Warning "Exception caught";
+                        
                         exit 1
                         Stop-Transcript;
                     }
                 }
-                catch {
-        
-                    write-Warning "Exception caught";
-                    write-Warning "$_";
-                }
+
 
                 If ( $WdEarlyLaunchStart -eq 3 ) {
 
                     try { 
                         Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WdBoot" -Name "Start" -Value 0;
                         if ($LASTEXITCODE -eq 1) {
-                            write-Warning "Exception caught";
+                            
                             exit 1
                             Stop-Transcript;
                         }
                     }
-                    catch {
-            
-                        write-Warning "Exception caught";
-                        write-Warning "$_";
-                    }
+
                 }                
 
                 If ( $WdEarlyLaunchImagePath -like '*\SystemRoot\system32\drivers\wd\WdBoot.sys*' ) {
@@ -1470,28 +1250,14 @@ function ReEnable-Windows-Defender {
                     try { 
                         Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WdBoot" -Name "ImagePath" -Value "system32\drivers\wd\WdBoot.sys";
                         if ($LASTEXITCODE -eq 1) {
-                            write-Warning "Exception caught";
+
                             exit 1
                             Stop-Transcript;
                         }
-                    }
-                    catch {
-            
-                        write-Warning "Exception caught";
-                        write-Warning "$_";
-                    }
+                   
                 }        
 
-            }
-            else {
-
-            }
-        }
-        else {
-
-        }
-    }
-    else {
+          
 
     } 
     
@@ -1518,5 +1284,4 @@ ReEnable-Windows-Defender
 
 
 try { Stop-Transcript } catch {}
-
-exit
+Exit
