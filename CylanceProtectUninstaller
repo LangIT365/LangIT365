@@ -1,0 +1,1287 @@
+param (
+    $safemode, 
+
+    $attempteduninstall
+)
+
+if ($safemode -eq "No") {
+    $global:SkipPauseAfter10s = "Yes"
+}
+
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
+
+function Check-Permissions {
+    
+    $global:DateTime = ""
+    $global:FolderName = ""
+    $global:Folder = ""
+    $global:dirPath = ""
+    $global:DateTime = $(get-date -f yyyy-MM-dd_hh_mm);
+    $global:FolderName = "Protect_Uninstall_Results";
+    $global:Folder = $global:FolderName + "_" + $global:DateTime;
+    $global:dirPath = $PSScriptRoot + "\" + $global:Folder
+    try {
+        New-Item -ItemType directory -Path $global:dirPath
+    }
+    catch {
+
+        Exit 1;
+
+    }
+
+    if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(`
+                [Security.Principal.WindowsBuiltInRole] "Administrator")) {
+
+
+
+    }
+
+} 
+
+function Check_DisableRegistryTools {
+    if (Test-Path -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System") {
+        $global:Originalkey = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"
+        $HiveAbr = $global:Originalkey.Substring(0, $global:Originalkey.IndexOf(':'))
+        $Hivepath = $global:Originalkey.Substring($global:Originalkey.IndexOf('\') + 1)
+        try { 
+            $DisableRegistryTools = (Get-ItemProperty HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -ErrorAction Stop).DisableRegistryTools
+        }
+
+    
+        If ( $DisableRegistryTools -eq 2) {
+            Exit 1;
+        }
+
+    }
+
+} 
+
+function variables {
+
+    $global:safemode = $safemode
+    $KeyName = ""
+    $MultiStringValue = ""
+    $Registrykeys = ""
+    $Result = ""
+    $global:Continue = ""
+    $global:KWildcard = ""
+    $global:MultiStringName = ""
+    $global:Originalkey = ""
+    $global:RegOutputFile = ""
+    $global:RegistryPath = ""
+    $global:RemoveDelete_Value = ""
+    $global:SafeExportName = ""
+    $global:SafeFileName = ""
+    $global:Servicevalue = ""
+    $installed = ""
+
+    if ($global:safemode -eq $null -or $global:safemode -eq '') {
+
+        
+        $global:safemode = "No";
+
+
+    }
+   
+    if ($global:AttemptedUninstall -eq $null -or $global:AttemptedUninstall -eq '') 
+
+    $global:MultiStringName = "UpperFilters";
+    $global:RemoveDelete_Value = "CyDevFlt";
+    $global:RemoveDelete_Value2 = "CyDevFltV2";
+    $global:RegistryPath = "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\class";
+    
+} 
+
+function Check_Add/Remove {
+
+    if ($attempteduninstall -ne "Yes" ) {
+        $yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "Description."
+        $no = New-Object System.Management.Automation.Host.ChoiceDescription "&No", "Description."
+        $cancel = New-Object System.Management.Automation.Host.ChoiceDescription "&Cancel", "Description."
+        $options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no, $cancel)
+        $software = ""
+        $software = @(
+            'Cylance OPTICS',
+            'Cylance PROTECT',
+            'Cylance Unified Agent'
+
+        )
+
+        $i = ""
+        foreach ($i in $software) {
+
+            $installed = (Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where { $_.DisplayName -eq $i }) -ne $null
+
+            If (-Not $installed) {
+
+                $global:Continue = "Yes";
+
+            }
+            
+        }
+    }
+    else {
+        $global:Continue = "Yes";
+    }
+}
+
+function modify-Self-Protection-Desktop {
+    if (Test-Path -Path "HKLM:\SOFTWARE\Cylance\Desktop") {
+        $global:Originalkey = "HKLM:\SOFTWARE\Cylance\Desktop"
+        $HiveAbr = $global:Originalkey.Substring(0, $global:Originalkey.IndexOf(':'))
+        $Hivepath = $global:Originalkey.Substring($global:Originalkey.IndexOf('\') + 1)
+        try { 
+            $SelfProtectionLevel = (Get-ItemProperty HKLM:\SOFTWARE\Cylance\Desktop -ErrorAction Stop).SelfProtectionLevel
+        }
+
+        If ( $SelfProtectionLevel -eq 0 -or $SelfProtectionLevel -eq 2) {
+            if ($global:safemode -eq "No") {
+    
+                try {
+                    Take-Permissions $HiveAbr $Hivepath
+                }
+
+
+                try { 
+                    Set-ItemProperty -Path "HKLM:\SOFTWARE\Cylance\Desktop" -Name "SelfProtectionLevel" -Value 1;
+                    if ($LASTEXITCODE -eq 1) {
+
+                        exit 1
+                        Stop-Transcript;
+                    }
+                }
+
+            }
+
+        }
+        elseif ( $SelfProtectionLevel -eq 1) {
+            
+        }
+        elseIf ( !$SelfProtectionLevel) {
+            if ($global:safemode -eq "No") {
+                try {
+                    Take-Permissions $HiveAbr $Hivepath
+                }
+    
+        
+                try { 
+                    New-ItemProperty -Path "HKLM:\SOFTWARE\Cylance\Desktop" -Name 'SelfProtectionLevel' -Value 1 -PropertyType DWord -ErrorAction Stop;
+                }
+
+            }
+
+        }
+
+
+    }
+
+
+} 
+
+function modify-Self-Protection-Optics {
+
+    if (Test-Path -Path "HKLM:\SOFTWARE\Cylance\Optics") {
+        $global:Originalkey = "HKLM:\SOFTWARE\Cylance\Optics"
+        $HiveAbr = $global:Originalkey.Substring(0, $global:Originalkey.IndexOf(':'))
+        $Hivepath = $global:Originalkey.Substring($global:Originalkey.IndexOf('\') + 1)
+
+        try { 
+            $SelfProtectionLevel = (Get-ItemProperty HKLM:\SOFTWARE\Cylance\Optics -ErrorAction Stop).SelfProtectionLevel
+        }
+
+
+        If ( $SelfProtectionLevel -eq 0 -or $SelfProtectionLevel -eq 2) {
+
+            if ($global:safemode -eq "No") {
+    
+
+                try {
+                    Take-Permissions $HiveAbr $Hivepath
+                }
+
+
+                try { 
+                    Set-ItemProperty -Path "HKLM:\SOFTWARE\Cylance\Optics" -Name "SelfProtectionLevel" -Value 1;
+                    if ($LASTEXITCODE -eq 1) {
+
+                        exit 1
+                        Stop-Transcript;
+                    }
+                }
+
+            }
+
+        }
+        elseif ( $SelfProtectionLevel -eq 1) {
+
+            
+        }
+        elseIf ( !$SelfProtectionLevel) {
+
+            if ($global:safemode -eq "No") {
+
+                try {
+                    Take-Permissions $HiveAbr $Hivepath
+                }
+   
+        
+                try { 
+                    
+                    New-ItemProperty -Path "HKLM:\SOFTWARE\Cylance\Optics" -Name 'SelfProtectionLevel' -Value 1 -PropertyType DWord -ErrorAction Stop;
+                }
+
+            }
+
+        }
+
+
+    }
+
+
+} 
+
+function modify-LastStateRestorePoint {
+
+    if (Test-Path -Path "HKLM:\SOFTWARE\Cylance\Desktop") {
+        $global:Originalkey = "HKLM:\SOFTWARE\Cylance\Desktop"
+        $HiveAbr = $global:Originalkey.Substring(0, $global:Originalkey.IndexOf(':'))
+        $Hivepath = $global:Originalkey.Substring($global:Originalkey.IndexOf('\') + 1)
+
+        
+        try { 
+            $SelfProtectionLevel = (Get-ItemProperty $global:Originalkey).PSObject.Properties.Name -contains "LastStateRestorePoint"
+        }
+
+
+        if ($SelfProtectionLevel) {
+
+
+            if ($global:Continue -eq "Yes") {
+                
+
+                if ($global:safemode -eq "No") {
+                    
+
+                    try {
+                        Take-Permissions $HiveAbr $Hivepath
+                    }
+
+                
+
+                    try {
+                        Remove-ItemProperty -Path HKLM:\SOFTWARE\Cylance\Desktop -Name LastStateRestorePoint -Force -Verbose -ErrorAction Stop
+
+                    }
+
+
+                }
+
+            }
+
+        }
+
+    } 
+} 
+
+function modify-Services {
+
+    $RegkeysHive = ""
+    $RegkeysHive = @(
+        'HKLM:\SYSTEM\CurrentControlSet\services\CyDevFlt'
+        , 'HKLM:\SYSTEM\CurrentControlSet\services\CyDevFlt64'
+        , 'HKLM:\SYSTEM\CurrentControlSet\services\CylanceDrv'
+        , 'HKLM:\SYSTEM\CurrentControlSet\services\CylanceSvc'
+        , 'HKLM:\SYSTEM\CurrentControlSet\services\CyProtectDrv'  
+        , 'HKLM:\SYSTEM\CurrentControlSet\services\CyOptics'
+        , 'HKLM:\SYSTEM\CurrentControlSet\services\CyOpticsDrv'
+        , 'HKLM:\SYSTEM\CurrentControlSet\services\CyAgent'
+        , 'HKLM:\SYSTEM\CurrentControlSet\services\CyDevFltV2'
+
+    )
+
+    $k = ""
+    foreach ($k in $RegkeysHive) {
+        
+        $global:Originalkey = $k
+        $global:SafeFileName = $k.replace(':', '_') 
+        $global:SafeFileName = $global:SafeFileName.replace('\', '_') 
+        $global:SafeExportName = $k.replace(':', '') 
+        $HiveAbr = $global:Originalkey.Substring(0, $global:Originalkey.IndexOf(':'))
+        $Hivepath = $global:Originalkey.Substring($global:Originalkey.IndexOf('\') + 1)
+
+
+        if (Test-Path -Path $k) {
+            
+            try {
+                $global:Servicevalue = (Get-ItemProperty $k -ErrorAction Stop).Start;
+            }
+
+
+            If ( $global:Servicevalue -ne 4 ) {
+
+    
+                if ($global:safemode -eq "No") {
+
+                    try {
+                        Take-Permissions $HiveAbr $Hivepath
+                    }
+  
+    
+                    try { 
+                        Set-ItemProperty -Path $k -Name "Start" -Value 4;
+                        $CheckValue = (Get-ItemProperty $k -ErrorAction Stop).Start;
+                        if ($CheckValue -ne 4) {
+                            write-Error "Disabling the service failed Current value: '$CheckValue'";
+                        }
+
+                    }
+
+                }
+
+            }
+
+        } 
+
+    }
+
+} 
+
+function Stop-Delete-Services {
+    if ($global:Continue -eq "Yes") {
+        
+        
+        $Services = @(
+            'CylanceSvc',
+            'CyProtectDrv',
+            'CyDevFlt64',
+            'CyAgent',
+            'CyOptics'
+        )
+            
+        foreach ($k in $Services) {
+            
+            $service = Get-Service -Name $k -ErrorAction SilentlyContinue
+            if ($service.Length -gt 0) {
+
+                if ($global:safemode -eq "No") {
+                    
+
+                    try {
+                        Stop-ServiceWithTimeout $k 30
+                    }
+                    catch {
+
+                    } 
+
+                    sc.exe delete $k #-ErrorAction SilentlyContinue
+                    if ( $LASTEXITCODE -eq 0 ) { 
+
+                    }
+                    if ( $LASTEXITCODE -eq 5 ) { 
+
+                    }
+                    if ( $LASTEXITCODE -eq 1072 ) { 
+
+                    }
+                } 
+                
+            }
+        } 
+
+
+        if ($global:safemode -eq "No") {
+            $CylanceUI = Stop-Process -ProcessName "CylanceUI" -Force -ErrorAction SilentlyContinue
+            if ($CylanceUI) {
+                $CylanceUI.CloseMainWindow()
+                Start-Sleep 5
+                if (!$CylanceUI.HasExited) {
+                    $CylanceUI | Stop-Process -Force
+                }
+            }
+            Remove-Variable CylanceUI
+        } 
+    }
+
+} 
+
+function Backup_Reg_Keys {
+    $CheckHKCRHive = (Get-PSDrive -PSProvider Registry | Select-Object Name, Provider, Root | Where { $_.Name -eq "HKCR" -and $_.Root -eq "HKEY_CLASSES_ROOT" }) -ne $null;
+    If ( !$CheckHKCRHive) {
+        
+        try {
+            New-PSDrive -Name HKCR -PSProvider Registry -Root HKEY_CLASSES_ROOT -ErrorAction Stop
+        }
+        catch {
+
+
+            exit 1
+            Stop-Transcript;
+        }
+    } 
+
+
+    $RegkeysHive = ""
+    $RegkeysHive = @(
+        'HKLM:\SOFTWARE\Cylance\Desktop',
+        'HKLM:\SOFTWARE\Cylance\Optics',
+        'HKLM:\SYSTEM\CurrentControlSet\services\CyDevFlt',
+        'HKLM:\SYSTEM\CurrentControlSet\services\CyDevFltV2',
+        'HKLM:\SYSTEM\CurrentControlSet\services\CyOpticsDrv',
+        'HKLM:\SYSTEM\CurrentControlSet\services\CylanceDrv',
+        'HKLM:\SYSTEM\CurrentControlSet\services\CyProtectDrv',
+        'HKLM:\SYSTEM\CurrentControlSet\services\CyOptics',
+        'HKLM:\SYSTEM\CurrentControlSet\services\CylanceSvc',
+        'HKLM:\SYSTEM\CurrentControlSet\services\CyDevFlt64',
+        'HKLM:\SYSTEM\CurrentControlSet\services\CyAgent',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Products\C5CF46E2682913A419B6D0A84E2B9245',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Products\EEEA7AC670DE2F343B7B624D338C49E8',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{2E64FC5C-9286-4A31-916B-0D8AE4B22954}',
+        'HKCR:\Installer\Features\C5CF46E2682913A419B6D0A84E2B9245',
+        'HKCR:\Installer\Products\C5CF46E2682913A419B6D0A84E2B9245',
+        'HKCR:\Installer\Features\EEEA7AC670DE2F343B7B624D338C49E8',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DIFx\Services\CyProtectDrv',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DIFx\Services\CylanceDrv',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DIFx\Services\CylanceOpticsDrv',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DIFx\Services\CyOpticsDrv'
+        'HKLM:\SOFTWARE\Microsoft\RADAR\HeapLeakDetection\DiagnosedApplications\CylanceSvc.exe',
+        'HKLM:\SOFTWARE\Microsoft\Tracing\CylanceSvc_RASAPI32',
+        'HKLM:\SOFTWARE\Microsoft\Tracing\CylanceSvc_RASMANCS',
+        'HKLM:\SOFTWARE\Microsoft\Tracing\CyOptics_RASAPI32',
+        'HKLM:\SOFTWARE\Microsoft\Tracing\CyOptics_RASMANCS',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DIFxApp\Components\{450500FA-75A8-44E8-BC01-734384C37067}',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DIFxApp\Components\{0F031C0D-153A-45EA-A827-C50D4D89FF3B}',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DIFxApp\Components\{72B70F45-0B32-5191-A610-8350D30001BD}',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\033832A116D21F144B962FF76D4884D3',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\050B5E1EB914B794D81D33D454BE5EDA',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\056F1F2DDE833B05FBCD73E2356DDD65',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\0B250EF44F86B284D91FACC3AEC02A6A',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\0EF15392547C50353BCFC3E00A3827FB',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\13A6247DBB6C4FE4EB7E8014BB12F85F',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\19A09EF58F343F153A382115133CB618',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\28EC0CF0E8B751959B4C48BD4B9F8799',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\517BD3DDC393FEB55A5C67E741B72E35',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\8384F56E243C82151BE8CB2C6460306A',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\00F6D629AD1DD634FAF344EBDEDA3B87',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\0158DE7CE6C322D4090A84BEE5E5B970',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\01944E0C4C36473479167EDE0E4B6918',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\01CE8C5C0853AD142853AC619D42CB2C',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\028975F5105D6B84EBC36597C86994D8',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\0359EAC03B1D14F4DA578FF2C7CC830B',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\0367243376916FD43A47FD078D55F8B1',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Components\03F7CD04CCD14E7459C109AF0888D70F',
+        'HKLM:\SYSTEM\CurrentControlSet\Services\EventLog\Application\CylanceSvc',
+        'HKLM:\SYSTEM\CurrentControlSet\Services\EventLog\Application\CyAgent',
+        'HKLM:\SYSTEM\CurrentControlSet\Services\EventLog\Application\CyOptics',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Products\5E3ECEF636AC03A42AD963002F50F714',
+        'HKLM:\SYSTEM\CurrentControlSet\services\CyElamDrv',
+        'HKLM:\SYSTEM\ControlSet001\services\CyElamDrv'
+    )
+
+    $k = ""
+    foreach ($k in $RegkeysHive) {
+        
+        $global:Originalkey = $k
+        $global:SafeFileName = $k.replace(':', '_')
+        $global:SafeFileName = $global:SafeFileName.replace('\', '_')
+        $global:SafeExportName = $k.replace(':', '')
+        $HiveAbr = $global:Originalkey.Substring(0, $global:Originalkey.IndexOf(':'))
+        $Hivepath = $global:Originalkey.Substring($global:Originalkey.IndexOf('\') + 1)
+
+        if (Test-Path -Path $k) {
+            
+            $global:RegOutputFile = "";
+            $global:RegOutputFile = $PSScriptRoot + "\" + $global:Folder + "\" + $global:SafeFileName + ".reg";
+            try {
+                reg export $global:SafeExportName $global:RegOutputFile /y | out-null;
+                if ($LASTEXITCODE -eq 1) {
+
+                    exit 1
+                    Stop-Transcript;
+                }
+
+                Delete_Reg_Keys;
+            }
+
+        } 
+    }
+
+    $RegkeysHive = ""
+    $RegkeysHive = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+        'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+    )
+    $RegkeysHiveDeletePaths = ""
+    $RegkeysHiveDeletePaths = @(
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
+        'HKCR:\Installer\Dependencies',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\TempPackages\C:\WINDOWS\Installer'
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\Folders\C:\WINDOWS\Installer',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce'
+    )
+
+    $l = ""
+    foreach ($l in $RegkeysHive) {
+        
+        $global:Originalkey = $l
+        $global:KWildcard1 = $l + "\*"
+        $HiveAbr = $global:Originalkey.Substring(0, $global:Originalkey.IndexOf(':'))
+        $Hivepath = $global:Originalkey.Substring($global:Originalkey.IndexOf('\') + 1)
+
+        $SearchWord = ""
+        $SearchWord = @(
+            'Cylance PROTECT'
+            , 'Cylance OPTICS'
+            , 'Cylance PROTECT with OPTICS'
+            , 'CylancePROTECT'
+            , 'Cylance Unified Agent' 
+        )
+
+        $m = ""
+        foreach ($m in $SearchWord) {
+            $installed = (Get-ItemProperty $global:KWildcard1 | Where { $_.DisplayName -eq $m -or $_.ProductName -eq $m }) -ne $null;
+            If ( $installed ) {
+
+
+                $KeyName1 = (Get-ItemProperty $global:KWildcard1 | Where-Object { $_.DisplayName -eq $m -or $_.ProductName -eq $m }).PSChildName;
+
+
+                $global:FullWildCard1 = $global:Originalkey + "\" + $KeyName1
+
+                $PathExists = (Get-ItemProperty $global:FullWildCard1 -ErrorAction SilentlyContinue) -ne $null;
+                If ( $PathExists ) {
+
+                    $n = $l + "\"
+                    $global:Originalkey = $n
+                    $global:SafeFileName1 = $n.replace(':', '_')
+                    $global:SafeFileName1 = $global:SafeFileName1.replace('\', '_')
+                    $global:SafeFileName1 = $global:SafeFileName1 + "_" + $KeyName1
+
+                    $global:SafeExportName = $n.replace(':', '')
+                    $global:SafeExportName = $global:SafeExportName + $KeyName1
+
+                    $global:RegOutputFile1 = "";
+                    $global:RegOutputFile1 = $PSScriptRoot + "\" + $global:Folder + "\" + $SafeFileName1 + ".reg";
+                    $HiveAbr = $global:Originalkey.Substring(0, $global:Originalkey.IndexOf(':'))
+                    $Hivepath = $global:Originalkey.Substring($global:Originalkey.IndexOf('\') + 1)
+                                               
+                    try {
+                        reg export $global:SafeExportName $global:RegOutputFile1 /y | out-null;
+                        if ($LASTEXITCODE -eq 1) {
+
+                            exit 1
+                            Stop-Transcript;
+                        }
+
+                        Delete_Reg_Keys;
+                    }
+
+                    $o = ""
+                    $p = ""
+                    foreach ($o in $RegkeysHiveDeletePaths) {
+                        $p = $o + "\"
+                        $global:Originalkey = $p
+                        $global:Originalkey = $o + "\" + $KeyName
+                        $global:SafeFileName = $p.replace(':', '_')   
+                        $global:SafeFileName = $global:SafeFileName.replace('\', '_') 
+                        $global:SafeFileName = $global:SafeFileName + "_" + $KeyName 
+                        $global:SafeExportName = $p.replace(':', '') 
+                        $global:SafeExportName = $global:SafeExportName + $KeyName 
+                        $global:RegOutputFile = "";
+                        $global:RegOutputFile = $PSScriptRoot + "\" + $global:Folder + "\" + $SafeFileName + ".reg";
+                        $HiveAbr = $global:Originalkey.Substring(0, $global:Originalkey.IndexOf(':'))
+                        $Hivepath = $global:Originalkey.Substring($global:Originalkey.IndexOf('\') + 1)
+                
+                        $RegkeyPathExist = ""
+                        $RegkeyPathExist = (Get-ItemProperty $global:Originalkey -ErrorAction SilentlyContinue) -ne $null;
+                        If ( $RegkeyPathExist ) {
+                             RegkeyPathExist
+                            try {
+                                reg export $global:SafeExportName $global:RegOutputFile /y | out-null;
+                                if ($LASTEXITCODE -eq 1) {
+
+                                    exit 1
+                                    Stop-Transcript;
+                                }
+
+                                Delete_Reg_Keys;
+                            }
+
+                        }  
+                    } 
+                }  
+            } 
+        } 
+    }
+#>
+
+    $RegkeysHive = ""
+    $RegkeysHive = @(
+        'HKCR:\Installer\Products'
+        , 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall'
+        , 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+        , 'HKCR:\Installer\Dependencies'
+        , 'HKLM:\SOFTWARE\Classes\Installer\Dependencies'
+        , 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DIFx\DriverStore'
+    )
+
+    $l = ""
+    foreach ($l in $RegkeysHive) {
+        
+        $global:Originalkey = $l
+        $global:KWildcard = $l + "\*" 
+        $HiveAbr = $global:Originalkey.Substring(0, $global:Originalkey.IndexOf(':'))
+        $Hivepath = $global:Originalkey.Substring($global:Originalkey.IndexOf('\') + 1)
+
+        $SearchWord = ""
+        $SearchWord = @(
+            'Cylance PROTECT'
+            , 'Cylance OPTICS'
+            , 'Cylance PROTECT with OPTICS'
+            , 'CylancePROTECT'
+            , 'Cylance Unified Agent'
+        )
+
+        $m = ""
+        foreach ($m in $SearchWord) {
+            $installed = (Get-ItemProperty $global:KWildcard | Where { $_.DisplayName -eq $m -or $_.ProductName -eq $m }) -ne $null;
+
+            If ( $installed ) {
+                
+                $KeyName = ""
+                $Result = ""
+                $KeyName = (Get-ItemProperty $global:KWildcard | Where-Object { $_.DisplayName -eq $m -or $_.ProductName -eq $m }).PSChildName;
+                foreach ($Result in $KeyName) {
+                    $n = $l + "\" + $Result
+                    $global:Originalkey = $n
+                    $global:SafeFileName = $n.replace(':', '_')   
+                    $global:SafeFileName = $global:SafeFileName.replace('\', '_') 
+                    $global:SafeExportName = $n.replace(':', '') 
+                    $global:RegOutputFile = "";
+                    $global:RegOutputFile = $PSScriptRoot + "\" + $global:Folder + "\" + $SafeFileName + ".reg";
+                    $HiveAbr = $global:Originalkey.Substring(0, $global:Originalkey.IndexOf(':'))
+                    $Hivepath = $global:Originalkey.Substring($global:Originalkey.IndexOf('\') + 1)
+
+                    try {
+                        reg export $global:SafeExportName $global:RegOutputFile /y | out-null;
+                        if ($LASTEXITCODE -eq 1) {
+
+                            exit 1
+                            Stop-Transcript;
+                        }
+
+                        Delete_Reg_Keys;
+                    }
+
+                } 
+            } 
+        }
+    }
+
+    
+
+    $RegkeysHive = ""
+    $RegkeysHive = @(
+        'HKLM:\SYSTEM\CurrentControlSet\Control\class'
+    )
+
+    $k = ""
+    foreach ($k in $RegkeysHive) {
+        
+        $global:Originalkey = $k
+        $global:KWildcard = $k + "\*" 
+
+        $SearchWord = "CyDevFlt";
+        $Result = (Get-ItemProperty $global:KWildcard | Where-Object { $_.UpperFilters -eq $SearchWord -or $_.LowerFilters -eq $SearchWord }).PSChildName;
+        $key = ""
+        foreach ($key in $Result) {
+            
+            $key = "$RegkeysHive\$key"
+            $global:SafeFileName = $key.replace(':', '_')   
+            $global:SafeFileName = $global:SafeFileName.replace('\', '_') 
+            $global:SafeExportName = $key.replace(':', '') 
+            $global:RegOutputFile = "";
+            $global:RegOutputFile = $PSScriptRoot + "\" + $global:Folder + "\" + $SafeFileName + ".reg";
+
+            try {
+                reg export $global:SafeExportName $global:RegOutputFile /y | out-null;
+                if ($LASTEXITCODE -eq 1) {
+
+                    exit 1
+                    Stop-Transcript;
+                }
+
+            }
+
+
+        } 
+
+    }
+
+
+
+    $global:Originalkey = ""
+    $global:KWildcard = ""
+    $RegkeysHive = ""
+    $RegkeysHive = @(
+        'HKLM:\SOFTWARE\Classes\CLSID'
+    )
+
+    $k = ""
+    foreach ($k in $RegkeysHive) {
+        
+        $global:Originalkey = $k
+        $global:KWildcard = $k + "\*" 
+
+        $key = ""
+        $Result = ""
+        $Result = (get-childitem -recurse $global:KWildcard | get-itemproperty | where { $_.'(Default)' -match 'CylanceMemDef.dll' -or $_.'(Default)' -match 'CylanceMemDef64.dll' }).PSParentPath;
+        
+        foreach ($key in $Result) {
+            $key = $key -replace '^[^:]+::' 
+            $key = $key.replace('HKEY_LOCAL_MACHINE', 'HKLM:') 
+            $global:Originalkey = $key
+            $HiveAbr = $global:Originalkey.Substring(0, $global:Originalkey.IndexOf(':'))
+            $Hivepath = $global:Originalkey.Substring($global:Originalkey.IndexOf('\') + 1)
+
+            $global:SafeFileName = $key.replace(':', '_')   
+            $global:SafeFileName = $global:SafeFileName.replace('\', '_') 
+            $global:SafeExportName = $key.replace(':', '') 
+            $global:RegOutputFile = "";
+            $global:RegOutputFile = $PSScriptRoot + "\" + $global:Folder + "\" + $SafeFileName + ".reg";
+
+            try {
+                reg export $global:SafeExportName $global:RegOutputFile /y | out-null;
+                if ($LASTEXITCODE -eq 1) {
+
+                    exit 1
+                    Stop-Transcript;
+                }
+
+                Delete_Reg_Keys;
+            }
+
+
+        } 
+
+    }
+
+} 
+
+function Search_Reg_CyDevFlt {
+
+    if ($global:Continue -eq "Yes") { 
+        $RegFilterList = ""
+        $RegFilterList = @('UpperFilters', 'LowerFilters')
+
+        $f = ""
+        foreach ($f in $RegFilterList) {
+            $global:MultiStringName = $f
+
+            $Registrykeys = Get-ChildItem -Recurse -Path "Registry::$global:RegistryPath" -ErrorAction SilentlyContinue
+            $Registrykeys | Select-Object -Property Name | ForEach-Object { 
+                $Path = $_.name
+                $MultiStringValue = (Get-ItemProperty Registry::$Path -Name $global:MultiStringName -ErrorAction SilentlyContinue).$global:MultiStringName
+
+                if ($MultiStringValue -like $global:RemoveDelete_Value) {
+        
+                    if ($MultiStringValue.length -eq '1') {
+                        if ($global:safemode -eq 'No') {
+
+                            Remove-ItemProperty Registry::$Path -Name $global:MultiStringName
+                        }
+
+
+                    }
+                    elseif ($MultiStringValue.length -gt '1') {
+                        $NewMultiStringValue = $MultiStringValue | Where-Object { $_ -ne $global:RemoveDelete_Value }
+
+                        if ($global:safemode -eq 'No') {
+
+                            Set-ItemProperty Registry::$Path -Name $global:MultiStringName -Value $NewMultiStringValue
+                        }
+
+                    } 
+                } 
+
+            } 
+        } 
+    }
+
+} 
+
+function Search_Reg_CyDevFltV2 {
+
+    if ($global:Continue -eq "Yes") { 
+        $RegFilterList = ""
+        $RegFilterList = @('UpperFilters', 'LowerFilters')
+
+        $f = ""
+        foreach ($f in $RegFilterList) {
+            $global:MultiStringName = $f
+
+            $Registrykeys = Get-ChildItem -Recurse -Path "Registry::$global:RegistryPath" -ErrorAction SilentlyContinue
+            $Registrykeys | Select-Object -Property Name | ForEach-Object { 
+                $Path = $_.name
+                $MultiStringValue = (Get-ItemProperty Registry::$Path -Name $global:MultiStringName -ErrorAction SilentlyContinue).$global:MultiStringName
+
+                if ($MultiStringValue -like $global:RemoveDelete_Value2) {
+        
+                    if ($MultiStringValue.length -eq '1') {
+
+                        if ($global:safemode -eq 'No') {
+
+                            Remove-ItemProperty Registry::$Path -Name $global:MultiStringName
+                        }
+
+
+                    }
+                    elseif ($MultiStringValue.length -gt '1') {
+
+                        $NewMultiStringValue = $MultiStringValue | Where-Object { $_ -ne $global:RemoveDelete_Value2 }
+
+                        if ($global:safemode -eq 'No') {
+
+                            Set-ItemProperty Registry::$Path -Name $global:MultiStringName -Value $NewMultiStringValue
+                        }
+
+                    } 
+                } 
+
+            } 
+        } 
+    }
+
+} 
+
+function Delete_Reg_Keys {
+
+    if ($global:Continue -eq "Yes") {
+        
+
+        if ($global:safemode -eq "Yes") {
+            
+        }
+        else {
+            try {
+                Take-Permissions $HiveAbr $Hivepath
+            }
+  
+
+            try {
+                Remove-Item -Path $global:Originalkey -Force -Recurse -Verbose -ErrorAction Stop
+
+            }
+
+        } 
+
+    }
+
+} 
+
+function Take-Permissions {
+
+    param($rootKey, $key, [System.Security.Principal.SecurityIdentifier]$sid = 'S-1-5-32-545', $recurse = $true)
+
+    switch -regex ($rootKey) {
+        'HKCU|HKEY_CURRENT_USER' { $rootKey = 'CurrentUser' }
+        'HKLM|HKEY_LOCAL_MACHINE' { $rootKey = 'LocalMachine' }
+        'HKCR|HKEY_CLASSES_ROOT' { $rootKey = 'ClassesRoot' }
+        'HKCC|HKEY_CURRENT_CONFIG' { $rootKey = 'CurrentConfig' }
+        'HKU|HKEY_USERS' { $rootKey = 'Users' }
+    }
+
+    $import = '[DllImport("ntdll.dll")] public static extern int RtlAdjustPrivilege(ulong a, bool b, bool c, ref bool d);'
+    $ntdll = Add-Type -Member $import -Name NtDll -PassThru
+    $privileges = @{ SeTakeOwnership = 9; SeBackup = 17; SeRestore = 18 }
+    $i = ""
+    foreach ($i in $privileges.Values) {
+        $null = $ntdll::RtlAdjustPrivilege($i, 1, 0, [ref]0)
+    }
+
+    function Take-KeyPermissions {
+        param($rootKey, $key, $sid, $recurse, $recurseLevel = 0)
+
+        $regKey = [Microsoft.Win32.Registry]::$rootKey.OpenSubKey($key, 'ReadWriteSubTree', 'TakeOwnership')
+        $acl = New-Object System.Security.AccessControl.RegistrySecurity
+        $acl.SetOwner($sid)
+        $regKey.SetAccessControl($acl)
+
+        $acl.SetAccessRuleProtection($false, $false)
+        $regKey.SetAccessControl($acl)
+
+        if ($recurseLevel -eq 0) {
+            $regKey = $regKey.OpenSubKey('', 'ReadWriteSubTree', 'ChangePermissions')
+            $rule = New-Object System.Security.AccessControl.RegistryAccessRule($sid, 'FullControl', 'ContainerInherit', 'None', 'Allow')
+            $acl.ResetAccessRule($rule)
+            $regKey.SetAccessControl($acl)
+        }
+
+        if ($recurse) {
+            foreach ($subKey in $regKey.OpenSubKey('').GetSubKeyNames()) {
+                Take-KeyPermissions $rootKey ($key + '\' + $subKey) $sid $recurse ($recurseLevel + 1)
+            }
+        }
+    }
+
+    Take-KeyPermissions $rootKey $key $sid $recurse
+} 
+
+function Take-Ownership-Permission-Individual-Files {
+
+    $FolderPaths1 = ""
+    $FolderPaths1 = @(
+        (${Env:SystemRoot} + "\System32\drivers\CyProtectDrv64.sys"),
+        (${Env:SystemRoot} + "\System32\drivers\CylanceDrv64.sys"), 
+        (${Env:SystemRoot} + "\System32\drivers\CyOpticsDrv.sys"), 
+        (${Env:SystemRoot} + "\System32\drivers\CyDevFlt64.sys"), 
+        (${Env:SystemRoot} + "\System32\drivers\CyDevFltV264.sys"), 
+        (${Env:SystemRoot} + "\System32\drivers\CyElamDrv64.cat"), 
+        (${Env:SystemRoot} + "\System32\drivers\CyElamDrv64.inf"), 
+        (${Env:SystemRoot} + "\System32\drivers\CyElamDrv64.sys"), 
+        (${Env:SystemRoot} + "\ELAMBKUP\CyElamDrv64.sys") 
+    )
+
+    foreach ($path1 in $FolderPaths1) {
+        if ($global:safemode -eq "Yes") {
+         
+
+        }
+        else {
+                        if (Test-Path -Path $path1) {
+                try {
+                    takeown /f "$path1" /A
+                    if ($LASTEXITCODE -eq 1) {
+                        
+                    }
+                }  
+
+            } 
+        } 
+    }
+       
+        
+    $FolderPaths2 = @(
+        (${Env:SystemRoot} + "\System32\drivers\CyProtectDrv64.sys"),
+        (${Env:SystemRoot} + "\System32\drivers\CylanceDrv64.sys"), 
+        (${Env:SystemRoot} + "\System32\drivers\CyOpticsDrv.sys"), 
+        (${Env:SystemRoot} + "\System32\drivers\CyOpticsDrv.bak"), 
+        (${Env:SystemRoot} + "\System32\drivers\CyDevFlt64.sys"), 
+        (${Env:SystemRoot} + "\System32\drivers\CyDevFltV264.sys"), 
+        (${Env:SystemRoot} + "\System32\drivers\CyElamDrv64.cat"), 
+        (${Env:SystemRoot} + "\System32\drivers\CyElamDrv64.inf"), 
+        (${Env:SystemRoot} + "\System32\drivers\CyElamDrv64.sys"), 
+        (${Env:SystemRoot} + "\ELAMBKUP\CyElamDrv64.sys") 
+        (${Env:SystemRoot} + "\ELAMBKUP\CyElamDrv64.sys.bak") 
+    )
+
+    $Grant = "/grant:r"
+    $replaceInherit = "/inheritance:e"
+    $permission = ":(OI)(CI)(F)"
+    $useraccount2 = "Administrators"
+    
+
+    foreach ($filepath1 in $FolderPaths2) {
+        if ($global:safemode -eq "Yes") {
+
+        }
+        else {
+            if (Test-Path -Path $filepath1) {
+                try {
+                    Invoke-Expression -Command ('icacls $filepath1 $Grant "${useraccount2}${permission}" /Q /T')
+                    Invoke-Expression -Command ('icacls $filepath1 $replaceInherit /Q /T') 
+                    if ($LASTEXITCODE -eq 1) {
+                        
+                    }
+                }  
+
+            } 
+        } 
+    }
+              
+}
+
+function Take-Ownership-Permission-Folder-Files {
+    $FolderPaths1 = ""
+    $FolderPaths1 = @(
+        'C:\Program Files\Cylance\Desktop'
+        , 'C:\ProgramData\Cylance\Desktop'
+        , 'C:\ProgramData\Cylance\Status'
+        , 'C:\Program Files\Cylance\Optics'
+        , 'C:\ProgramData\Cylance\Optics'
+
+    )
+    foreach ($path1 in $FolderPaths1) {
+        if ($global:safemode -eq "Yes") {
+
+        }
+        else {
+            if (Test-Path -Path $path1) {
+                try {
+                    takeown /f "$path1" /R /A /D Y
+                    if ($LASTEXITCODE -eq 1) {
+                        
+                    }
+                }  
+
+            }
+        } 
+    }
+       
+        
+    $FolderPaths2 = ""
+    $FolderPaths2 = @(
+        'C:\Program Files\Cylance\Desktop'
+        , 'C:\ProgramData\Cylance\Desktop'
+        , 'C:\ProgramData\Cylance\Status'
+        , 'C:\Program Files\Cylance\Optics'
+        , 'C:\ProgramData\Cylance\Optics'
+    )
+
+    $Grant = "/grant:r"
+    $replaceInherit = "/inheritance:e"
+    $permission = ":(OI)(CI)(F)"
+    $useraccount2 = "Administrators"
+    
+    foreach ($filepath1 in $FolderPaths2) {
+        if ($global:safemode -eq "Yes") {
+
+        }
+        else {
+            
+            if (Test-Path -Path $filepath1) {
+                
+                try {
+                    Invoke-Expression -Command ('icacls $filepath1 $Grant "${useraccount2}${permission}" /Q /T')
+                    Invoke-Expression -Command ('icacls $filepath1 $replaceInherit /Q /T') 
+                    if ($LASTEXITCODE -eq 1) {
+                        
+                    }
+                }  
+
+            } 
+        } 
+    }
+              
+} 
+
+function Delete-Files-n-Folders {
+    
+    $FolderPaths3 = @(
+    (${Env:LOCALAPPDATA} + "\Cylance\Desktop"),
+    (${Env:Programfiles} + "\Cylance\Desktop"),
+    (${Env:Programfiles} + "\Cylance\Optics"),
+    (${Env:ProgramFiles(x86)} + "\Cylance\Desktop"),
+    (${Env:ProgramFiles(x86)} + "\Cylance\Optics"),
+    (${Env:ProgramData} + "\Cylance\Desktop"),
+    (${Env:ProgramData} + "\Cylance\Optics"),
+    (${Env:ProgramData} + "\Cylance\Status"),
+    (${Env:ProgramData} + "\Microsoft\Windows\Start Menu\Programs\Cylance\Cylance PROTECT.lnk"),
+    (${Env:ProgramData} + "\Microsoft\Windows\Start Menu\Programs\Startup\Cylance Desktop.lnk"),
+    (${Env:SystemRoot} + "\System32\DRVSTORE\CylanceDrv*"),
+    (${Env:SystemRoot} + "\System32\DRVSTORE\CyProtect*"),
+    (${Env:SystemRoot} + "\System32\DRVSTORE\CyOpticsDr*"),
+    (${Env:SystemRoot} + "\System32\drivers\CyProtectDrv64.sys"),
+    (${Env:SystemRoot} + "\System32\drivers\CylanceDrv64.sys"), 
+    (${Env:SystemRoot} + "\System32\drivers\CyOpticsDrv.sys"), 
+    (${Env:SystemRoot} + "\System32\drivers\CyDevFlt64.sys"), 
+    (${Env:SystemRoot} + "\System32\drivers\CyDevFltV264.sys"), 
+    (${Env:SystemRoot} + "\System32\drivers\CyElamDrv64.cat"), 
+    (${Env:SystemRoot} + "\System32\drivers\CyElamDrv64.inf"), 
+    (${Env:SystemRoot} + "\System32\drivers\CyElamDrv64.sys"), 
+    (${Env:SystemRoot} + "\ELAMBKUP\CyElamDrv64.sys") 
+    )
+
+
+    foreach ($filepath3 in $FolderPaths3) {
+        if (Test-Path $filepath3) {
+            
+            if ($filepath3 -like '*ELAM*') {
+                $global:OutputFile = "";
+                $FolderOnly = (Split-Path -Path $filepath3)
+                $FolderOnly = $FolderOnly.Replace("C:\", "")
+                $global:OutputFile = $PSScriptRoot + "\" + $global:Folder + "\" + $FolderOnly;
+
+                try {
+                    New-Item -ItemType Directory $global:OutputFile -Force
+                    Copy-Item $filepath3 -Destination $global:OutputFile -Force
+                }
+
+            }
+
+
+            if ($global:safemode -eq "No") {
+                if ($filepath3 -like '*Elam*') { 
+                    if (Test-Path -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\CyElamDrv') {
+
+                    }
+                    else {
+                        try {
+                            Remove-Item -Recurse -Force $filepath3 -ErrorAction Stop
+                        }
+
+                    }
+                }
+                else {
+                    try {
+                        Remove-Item -Recurse -Force $filepath3 -ErrorAction Stop
+                    }
+
+                } 
+            } 
+
+            if ($LASTEXITCODE -eq 1) {
+
+            }
+        } 
+    }
+     
+
+    $filepath4 = ""
+    $FolderPaths4 = ""
+    $FolderPaths4 = @(
+    (${Env:LOCALAPPDATA} + "\Cylance"),
+    (${Env:Programfiles} + "\Cylance"),
+    (${Env:ProgramFiles(x86)} + "\Cylance"),
+    (${Env:ProgramData} + "\Cylance")
+    )
+
+    foreach ($filepath4 in $FolderPaths4) {
+        if (Test-Path $filepath4) {
+             
+            if ((Get-ChildItem $filepath4 | Measure-Object).Count -eq 0) {
+                 
+                
+
+                if ($global:safemode -eq "No") {
+                    try {
+                        Remove-Item -Recurse -Force $filepath4 -ErrorAction Stop
+                    }
+
+                }
+
+                if ($LASTEXITCODE -eq 1) {
+
+                }
+            }  
+        }  
+       
+    } 
+
+} 
+
+function Stop-ServiceWithTimeout ([string] $name, [int] $timeoutSeconds) {
+    $timespan = New-Object -TypeName System.Timespan -ArgumentList 0, 0, $timeoutSeconds
+    $svc = Get-Service -Name $name
+    if ($svc -eq $null) { return $false }
+    if ($svc.Status -eq [ServiceProcess.ServiceControllerStatus]::Stopped) { return $true }
+    $svc.Stop()
+    try {
+        $svc.WaitForStatus([ServiceProcess.ServiceControllerStatus]::Stopped, $timespan)
+    }
+    catch [ServiceProcess.TimeoutException] {
+        Write-Verbose "Timeout stopping service $($svc.Name)"
+        return $false
+    }
+    return $true
+}
+
+function ReEnable-Windows-Defender {
+
+    if (Test-Path -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WdBoot") {
+        $global:Originalkey = ""
+        $HiveAbr = ""
+        $Hivepath = ""
+        $global:Originalkey = "HKLM:\SYSTEM\CurrentControlSet\Services\WdBoot"
+        $HiveAbr = $global:Originalkey.Substring(0, $global:Originalkey.IndexOf(':'))
+        $Hivepath = $global:Originalkey.Substring($global:Originalkey.IndexOf('\') + 1)
+        try { 
+            $WdEarlyLaunchGroup = (Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\WdBoot -ErrorAction Stop).Group
+        }
+
+
+        try { 
+            $WdEarlyLaunchStart = (Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\WdBoot -ErrorAction Stop).Start
+        }
+
+
+        try { 
+            $WdEarlyLaunchImagePath = (Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\WdBoot -ErrorAction Stop).ImagePath
+        }
+
+
+        If ( $WdEarlyLaunchGroup -like '*_Early-Launch*' ) {
+
+            if ($global:safemode -eq "No") {
+        
+
+                try {
+                    Take-Permissions $HiveAbr $Hivepath
+                }
+
+
+                try { 
+                    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WdBoot" -Name "Group" -Value "Early-Launch";
+                    if ($LASTEXITCODE -eq 1) {
+                        
+                        exit 1
+                        Stop-Transcript;
+                    }
+                }
+
+
+                If ( $WdEarlyLaunchStart -eq 3 ) {
+
+                    try { 
+                        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WdBoot" -Name "Start" -Value 0;
+                        if ($LASTEXITCODE -eq 1) {
+                            
+                            exit 1
+                            Stop-Transcript;
+                        }
+                    }
+
+                }                
+
+                If ( $WdEarlyLaunchImagePath -like '*\SystemRoot\system32\drivers\wd\WdBoot.sys*' ) {
+
+                    try { 
+                        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\WdBoot" -Name "ImagePath" -Value "system32\drivers\wd\WdBoot.sys";
+                        if ($LASTEXITCODE -eq 1) {
+
+                            exit 1
+                            Stop-Transcript;
+                        }
+                   
+                }        
+
+          
+
+    } 
+    
+ 
+
+}
+
+Check-Permissions
+Check_DisableRegistryTools
+variables
+Check_Add/Remove
+modify-Self-Protection-Desktop
+modify-Self-Protection-Optics
+modify-LastStateRestorePoint
+modify-Services
+Stop-Delete-Services
+Backup_Reg_Keys
+Search_Reg_CyDevFlt
+Search_Reg_CyDevFltV2
+Take-Ownership-Permission-Individual-Files
+Take-Ownership-Permission-Folder-Files
+Delete-Files-n-Folders
+ReEnable-Windows-Defender
+
+
+try { Stop-Transcript } catch {}
+Exit
