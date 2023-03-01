@@ -163,7 +163,15 @@ function variables {
     if ($global:safemode -eq "Yes") {
         Write-Host "safemode is Enabled. No Changes will be made" -ForegroundColor Green
     }
-   
+    elseif ($global:safemode -eq "No") {
+        Write-Warning "safemode is Disbaled. Changes will be made"
+        if ($global:SkipPauseAfter10s -eq "Yes") {
+            Write-Host "Pausing for 10s"
+            Start-Sleep -Seconds 5
+        }
+        else {
+            pause
+        }
         
     }
 
